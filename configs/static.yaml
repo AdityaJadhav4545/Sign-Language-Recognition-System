@@ -1,0 +1,51 @@
+data_root: data/landmarks
+checkpoint_dir: checkpoints
+export_dir: exports
+epochs: 60
+batch: 128
+lr: 0.001
+dropout: 0.3
+val_split: 0.15
+label_smoothing: 0.1
+weight_decay: 0.0001
+min_detection_confidence: 0.85
+conf_threshold: 0.75
+hold_frames: 12
+
+classes:
+  - A
+  - B
+  - C
+  - D
+  - E
+  - F
+  - G
+  - H
+  - I
+  - J
+  - K
+  - L
+  - M
+  - N
+  - O
+  - P
+  - Q
+  - R
+  - S
+  - T
+  - U
+  - V
+  - W
+  - X
+  - Y
+  - Z
+  - "0"
+  - "1"
+  - "2"
+  - "3"
+  - "4"
+  - "5"
+  - "6"
+  - "7"
+  - "8"
+  - "9"

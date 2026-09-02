@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SignSense — Live Camera</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+
+<!-- MediaPipe Hands (WASM, runs entirely in browser) -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+<!-- ONNX Runtime Web (runs .onnx model in browser) -->
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+
+<style>
+/* ══════════════════════════════════════════════
+   TOKENS
+══════════════════════════════════════════════ */
+:root {
+  --ink:    #080808;
+  --bg2:    #111111;
+  --bg3:    #181818;
+  --border: rgba(255,255,255,0.07);
+  --paper:  #f0ebe3;
+  --ash:    #9a9390;
+  --slate:  #555150;
+  --green:  #1a7a50;
+  --g2:     #22c97a;
+  --g3:     rgba(34,201,122,0.12);
+  --amber:  #e8991a;
+  --red:    #e05252;
+  --white:  #ffffff;
+
+  --f-display: 'Bebas Neue', sans-serif;
+  --f-serif:   'Instrument Serif', serif;
+  --f-mono:    'DM Mono', monospace;
+  --ease:      cubic-bezier(0.16,1,0.3,1);
+  --spring:    cubic-bezier(0.34,1.56,0.64,1);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+
+body {
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--f-mono);
+  font-weight: 300;
+  overflow: hidden;
+  cursor: none;
+}
+
+/* ── Custom cursor ── */
+#cur  { position:fixed;width:8px;height:8px;background:var(--g2);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);mix-blend-mode:exclusion; }
+#curR { position:fixed;width:30px;height:30px;border:1px solid var(--g2);border-radius:50%;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);opacity:.5;transition:width .25s,height .25s; }
+
+/* ── Noise grain ── */
+body::after {
+  content:'';position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity:.025;pointer-events:none;z-index:9990;
+}
+
+/* ══════════════════════════════════════════════
+   LAYOUT — 3-column
+══════════════════════════════════════════════ */
+#app {
+  display: grid;
+  grid-template-columns: 220px 1fr 260px;
+  grid-template-rows: 52px 1fr;
+  height: 100vh;
+  gap: 0;
+}
+
+/* ── TOP NAV ── */
+#topbar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: rgba(8,8,8,0.95);
+  backdrop-filter: blur(20px);
+  z-index: 10;
+}
+
+.logo {
+  font-family: var(--f-display);
+  font-size: 1.3rem;
+  letter-spacing: 0.1em;
+  color: var(--paper);
+  text-decoration: none;
+}
+.logo span { color: var(--g2); }
+
+.topbar-center {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Status pill */
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.28rem 0.85rem;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ash);
+  transition: all 0.3s;
+}
+.status-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--slate);
+  transition: background 0.3s;
+}
+.status-pill.ready   { border-color: rgba(34,201,122,0.3); color: var(--g2); }
+.status-pill.ready   .status-dot { background: var(--g2); box-shadow: 0 0 6px var(--g2); animation: blink 2s infinite; }
+.status-pill.loading { border-color: rgba(232,153,26,0.3); color: var(--amber); }
+.status-pill.loading .status-dot { background: var(--amber); }
+.status-pill.error   { border-color: rgba(224,82,82,0.3);  color: var(--red); }
+.status-pill.error   .status-dot { background: var(--red); }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+.fps-badge {
+  font-family: var(--f-mono);
+  font-size: 0.62rem;
+  color: var(--slate);
+  letter-spacing: 0.08em;
+  min-width: 52px;
+}
+
+.topbar-right { display:flex; align-items:center; gap:1rem; }
+
+.btn-sm {
+  font-family: var(--f-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.3rem 0.9rem;
+  border-radius: 2px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--ash);
+  cursor: none;
+  transition: all 0.2s;
+}
+.btn-sm:hover { border-color: var(--g2); color: var(--g2); }
+.btn-sm.active { background: var(--g2); color: var(--ink); border-color: var(--g2); }
+
+a.home-link {
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--slate);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+a.home-link:hover { color: var(--paper); }
+
+/* ══════════════════════════════════════════════
+   LEFT PANEL — controls
+══════════════════════════════════════════════ */
+#left-panel {
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-section {
+  padding: 1.1rem 1.2rem;
+  border-bottom: 1px solid var(--border);
+}
+.panel-label {
+  font-size: 0.58rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--slate);
+  margin-bottom: 0.85rem;
+}
+
+/* Threshold slider */
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 0.6rem;
+}
+.slider-lbl { font-size: 0.68rem; color: var(--ash); flex: 1; }
+.slider-val {
+  font-family: var(--f-mono);
+  font-size: 0.68rem;
+  color: var(--g2);
+  width: 32px;
+  text-align: right;
+}
+input[type=range] {
+  width: 100%;
+  height: 3px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255,255,255,0.08);
+  border-radius: 2px;
+  outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--g2);
+  cursor: none;
+  transition: transform 0.15s var(--spring);
+}
+input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.3); }
+input[type=range]:focus { outline: none; }
+
+/* Toggle switches */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+.toggle-lbl { font-size: 0.68rem; color: var(--ash); }
+.toggle {
+  position: relative;
+  width: 32px; height: 17px;
+}
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-track {
+  position: absolute; inset: 0;
+  background: rgba(255,255,255,0.08);
+  border-radius: 99px;
+  cursor: none;
+  transition: background 0.2s;
+}
+.toggle input:checked + .toggle-track { background: var(--green); }
+.toggle-thumb {
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  background: var(--white);
+  transition: transform 0.2s var(--spring);
+  pointer-events: none;
+}
+.toggle input:checked ~ .toggle-thumb { transform: translateX(15px); }
+
+/* History list */
+#history-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.6rem 0;
+}
+#history-list::-webkit-scrollbar { width: 3px; }
+#history-list::-webkit-scrollbar-track { background: transparent; }
+#history-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.45rem 1.2rem;
+  transition: background 0.15s;
+  animation: slideIn 0.25s var(--ease);
+}
+.history-item:hover { background: rgba(255,255,255,0.03); }
+@keyframes slideIn {
+  from { opacity:0; transform: translateX(-8px); }
+  to   { opacity:1; transform: translateX(0); }
+}
+.hi-letter {
+  font-family: var(--f-display);
+  font-size: 1.5rem;
+  color: var(--g2);
+  width: 28px;
+  line-height: 1;
+}
+.hi-conf {
+  flex: 1;
+  height: 3px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.hi-conf-fill {
+  height: 100%;
+  background: var(--g2);
+  border-radius: 2px;
+  transition: width 0.4s var(--ease);
+}
+.hi-time {
+  font-size: 0.6rem;
+  color: var(--slate);
+  width: 40px;
+  text-align: right;
+}
+
+/* ══════════════════════════════════════════════
+   CENTRE — VIDEO
+══════════════════════════════════════════════ */
+#centre {
+  position: relative;
+  overflow: hidden;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#videoEl {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1); /* mirror */
+  display: none;
+}
+
+#canvasEl {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+}
+
+/* Loading overlay */
+#loadOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  background: var(--ink);
+  z-index: 5;
+  transition: opacity 0.5s, visibility 0.5s;
+}
+#loadOverlay.hidden { opacity: 0; visibility: hidden; }
+
+.load-spinner {
+  width: 48px; height: 48px;
+  border: 2px solid rgba(34,201,122,0.15);
+  border-top-color: var(--g2);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.load-title {
+  font-family: var(--f-display);
+  font-size: 1.6rem;
+  letter-spacing: 0.08em;
+  color: var(--paper);
+}
+.load-sub {
+  font-size: 0.7rem;
+  color: var(--slate);
+  letter-spacing: 0.1em;
+  text-align: center;
+  line-height: 1.8;
+}
+.load-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 220px;
+}
+.load-step {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-size: 0.65rem;
+  color: var(--slate);
+  letter-spacing: 0.08em;
+  transition: color 0.3s;
+}
+.load-step.done  { color: var(--g2); }
+.load-step.active{ color: var(--amber); }
+.load-step-icon { font-size: 0.7rem; width: 14px; text-align: center; }
+
+/* Permission overlay */
+#permOverlay {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  background: var(--ink);
+  z-index: 6;
+}
+#permOverlay.show { display: flex; }
+.perm-icon { font-size: 3rem; }
+.perm-title { font-family: var(--f-display); font-size: 1.8rem; color: var(--paper); }
+.perm-sub { font-size: 0.75rem; color: var(--ash); text-align: center; max-width: 300px; line-height: 1.7; }
+.btn-perm {
+  font-family: var(--f-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.7rem 2rem;
+  border-radius: 2px;
+  border: none;
+  background: var(--g2);
+  color: var(--ink);
+  cursor: none;
+  margin-top: 0.5rem;
+  transition: transform 0.2s var(--spring), box-shadow 0.2s;
+}
+.btn-perm:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(34,201,122,0.3); }
+
+/* ONNX not loaded overlay */
+#onnxOverlay {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  background: rgba(8,8,8,0.92);
+  z-index: 4;
+  backdrop-filter: blur(4px);
+}
+#onnxOverlay.show { display: flex; }
+.onnx-msg {
+  font-size: 0.75rem;
+  color: var(--amber);
+  text-align: center;
+  max-width: 360px;
+  line-height: 1.8;
+  border: 1px solid rgba(232,153,26,0.2);
+  padding: 1.2rem 1.5rem;
+  border-radius: 4px;
+  background: rgba(232,153,26,0.05);
+}
+.onnx-msg strong { color: var(--amber); display: block; margin-bottom: 0.5rem; font-size: 0.85rem; }
+.onnx-msg code { font-family: var(--f-mono); font-size: 0.7rem; background: rgba(0,0,0,0.4); padding: 1px 5px; border-radius: 2px; }
+
+/* HUD overlays on video */
+.hud-corner {
+  position: absolute;
+  width: 18px; height: 18px;
+  border-color: var(--g2);
+  border-style: solid;
+  opacity: 0.5;
+  pointer-events: none;
+}
+.hud-corner.tl { top:12px;left:12px;  border-width:1.5px 0 0 1.5px; }
+.hud-corner.tr { top:12px;right:12px; border-width:1.5px 1.5px 0 0; }
+.hud-corner.bl { bottom:12px;left:12px;  border-width:0 0 1.5px 1.5px; }
+.hud-corner.br { bottom:12px;right:12px; border-width:0 1.5px 1.5px 0; }
+
+/* Scanline */
+.scanline {
+  position: absolute;
+  left:0;right:0;height:2px;
+  background: linear-gradient(90deg,transparent,rgba(34,201,122,0.25),transparent);
+  pointer-events: none;
+  animation: scanAnim 5s linear infinite;
+}
+@keyframes scanAnim { from{top:0} to{top:100%} }
+
+/* ══════════════════════════════════════════════
+   RIGHT PANEL — prediction display
+══════════════════════════════════════════════ */
+#right-panel {
+  background: var(--bg2);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Big prediction */
+.pred-main {
+  padding: 1.5rem 1.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.pred-eyebrow {
+  font-size: 0.58rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--slate);
+  margin-bottom: 0.6rem;
+}
+.pred-letter-big {
+  font-family: var(--f-display);
+  font-size: 7rem;
+  line-height: 0.85;
+  color: var(--g2);
+  letter-spacing: 0.02em;
+  transition: all 0.15s var(--ease);
+  filter: drop-shadow(0 0 20px rgba(34,201,122,0.3));
+}
+.pred-letter-big.flash {
+  animation: flash 0.2s var(--ease);
+}
+@keyframes flash {
+  0%   { transform: scale(1.15); filter: drop-shadow(0 0 40px rgba(34,201,122,0.7)); }
+  100% { transform: scale(1);    filter: drop-shadow(0 0 20px rgba(34,201,122,0.3)); }
+}
+.pred-name {
+  font-family: var(--f-serif);
+  font-style: italic;
+  font-size: 0.9rem;
+  color: var(--ash);
+  margin-top: 0.2rem;
+}
+
+/* Confidence bar */
+.conf-section {
+  padding: 0.8rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.conf-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+.conf-lbl { font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--slate); }
+.conf-pct { font-family: var(--f-mono); font-size: 0.72rem; color: var(--g2); }
+.conf-bar-track {
+  height: 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.conf-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--g2);
+  width: 0;
+  transition: width 0.2s var(--ease), background 0.2s;
+}
+.conf-bar-fill.low  { background: var(--red); }
+.conf-bar-fill.mid  { background: var(--amber); }
+
+/* Class probabilities (top 5) */
+.probs-section {
+  padding: 0.8rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.prob-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+.prob-cls {
+  font-family: var(--f-display);
+  font-size: 1rem;
+  color: var(--ash);
+  width: 22px;
+  flex-shrink: 0;
+}
+.prob-cls.top { color: var(--g2); }
+.prob-bar-track {
+  flex: 1;
+  height: 3px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.prob-bar-fill {
+  height: 100%;
+  background: rgba(34,201,122,0.35);
+  border-radius: 2px;
+  transition: width 0.2s var(--ease);
+}
+.prob-bar-fill.top { background: var(--g2); }
+.prob-val {
+  font-family: var(--f-mono);
+  font-size: 0.6rem;
+  color: var(--slate);
+  width: 32px;
+  text-align: right;
+}
+
+/* Phrase builder */
+.phrase-section {
+  padding: 0.8rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+#phraseDisplay {
+  font-family: var(--f-display);
+  font-size: 1.6rem;
+  color: var(--paper);
+  letter-spacing: 0.05em;
+  min-height: 2rem;
+  word-break: break-all;
+  line-height: 1.1;
+  transition: all 0.15s;
+}
+.phrase-controls {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+/* Stability ring */
+.stability-section {
+  padding: 0.9rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.stab-ring-wrap {
+  position: relative;
+  width: 52px; height: 52px;
+  flex-shrink: 0;
+}
+.stab-ring-wrap svg { transform: rotate(-90deg); }
+.stab-ring-track { fill:none; stroke:rgba(255,255,255,0.07); stroke-width:3; }
+.stab-ring-fill  { fill:none; stroke:var(--g2); stroke-width:3; stroke-linecap:round; transition: stroke-dashoffset 0.15s; }
+.stab-info { flex: 1; }
+.stab-lbl { font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--slate); }
+.stab-val { font-family: var(--f-display); font-size: 1.4rem; color: var(--paper); line-height: 1.2; }
+
+/* Landmark section */
+.lm-section {
+  padding: 0.8rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.lm-canvas-wrap {
+  width: 100%;
+  aspect-ratio: 0.75;
+  max-height: 120px;
+  position: relative;
+}
+#lmCanvas {
+  width: 100%; height: 100%;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: rgba(0,0,0,0.3);
+}
+
+/* Instructions */
+.instr-section {
+  padding: 0.8rem 1.5rem;
+  flex: 1;
+  overflow-y: auto;
+}
+.instr-row {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.35rem 0;
+  font-size: 0.65rem;
+  color: var(--slate);
+  letter-spacing: 0.06em;
+}
+#modelStats .ms-item { display:flex;align-items:center;gap:0.3rem;padding:0.2rem 0.6rem;border-radius:2px;border:1px solid var(--border); }
+#modelStats .ms-item b { color:var(--g2);font-weight:500; }
+.instr-key {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-family: var(--f-mono);
+  font-size: 0.62rem;
+  color: var(--ash);
+  flex-shrink: 0;
+}
+</style>
+</head>
+<body>
+
+<div id="cur"></div>
+<div id="curR"></div>
+
+<div id="app">
+
+  <!-- ── TOPBAR ── -->
+  <header id="topbar">
+    <a href="index.html" class="logo">SIGN<span>SENSE</span></a>
+
+    <div class="topbar-center">
+      <div class="status-pill loading" id="statusPill">
+        <div class="status-dot"></div>
+        <span id="statusText">Loading…</span>
+      </div>
+      <div class="fps-badge" id="fpsBadge">-- fps</div>
+    </div>
+
+    <div id="modelStats" style="display:none;align-items:center;gap:1rem;font-size:0.6rem;letter-spacing:0.1em;color:var(--slate)"></div>
+    <div class="topbar-right">
+      <button class="btn-sm active" id="btnLandmarks">Landmarks</button>
+      <button class="btn-sm" id="btnFlip">Flip</button>
+      <button class="btn-sm" id="btnFullscreen">Fullscreen</button>
+      <a href="index.html" class="home-link">← Home</a>
+    </div>
+  </header>
+
+  <!-- ── LEFT PANEL ── -->
+  <aside id="left-panel">
+
+    <div class="panel-section">
+      <div class="panel-label">Confidence Threshold</div>
+      <div class="slider-row">
+        <div class="slider-lbl">Min confidence</div>
+        <div class="slider-val" id="confThreshVal">75%</div>
+      </div>
+      <input type="range" id="confThresh" min="30" max="99" value="75">
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-label">Phrase Builder</div>
+      <div class="toggle-row">
+        <div class="toggle-lbl">Auto-commit</div>
+        <label class="toggle">
+          <input type="checkbox" id="autoCommit" checked>
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+      </div>
+      <div class="slider-row">
+        <div class="slider-lbl">Hold frames</div>
+        <div class="slider-val" id="holdVal">12</div>
+      </div>
+      <input type="range" id="holdFrames" min="4" max="30" value="12">
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-label">Display</div>
+      <div class="toggle-row">
+        <div class="toggle-lbl">Show landmarks</div>
+        <label class="toggle">
+          <input type="checkbox" id="showLandmarks" checked>
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-lbl">Show connections</div>
+        <label class="toggle">
+          <input type="checkbox" id="showConnections" checked>
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-lbl">Scanline effect</div>
+        <label class="toggle">
+          <input type="checkbox" id="showScanline" checked>
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+      </div>
+    </div>
+
+    <div class="panel-section" style="flex:none">
+      <div class="panel-label">Sign History</div>
+    </div>
+    <div id="history-list"></div>
+
+  </aside>
+
+  <!-- ── CENTRE VIDEO ── -->
+  <main id="centre">
+    <!-- Hidden video input for MediaPipe -->
+    <video id="videoEl" playsinline autoplay muted></video>
+
+    <!-- Drawing canvas (landmarks + bounding box) -->
+    <canvas id="canvasEl"></canvas>
+
+    <!-- Corner markers -->
+    <div class="hud-corner tl"></div>
+    <div class="hud-corner tr"></div>
+    <div class="hud-corner bl"></div>
+    <div class="hud-corner br"></div>
+    <div class="scanline" id="scanlineEl"></div>
+
+    <!-- Loading overlay -->
+    <div id="loadOverlay">
+      <div class="load-spinner"></div>
+      <div class="load-title">INITIALISING</div>
+      <div class="load-sub">Loading models into browser memory.<br>This takes 5–10 seconds once.</div>
+      <div class="load-steps">
+        <div class="load-step active" id="step-mp">
+          <span class="load-step-icon">🖐️</span> MediaPipe Hands WASM
+        </div>
+        <div class="load-step" id="step-onnx">
+          <span class="load-step-icon">🧠</span> ONNX Runtime + Model
+        </div>
+        <div class="load-step" id="step-cam">
+          <span class="load-step-icon">📷</span> Camera Access
+        </div>
+      </div>
+    </div>
+
+    <!-- Permission overlay -->
+    <div id="permOverlay">
+      <div class="perm-icon">📷</div>
+      <div class="perm-title">Camera Access</div>
+      <div class="perm-sub">SignSense needs your camera to detect hand landmarks in real time. No video is recorded or sent anywhere.</div>
+      <button class="btn-perm" id="btnGrantPerm">Allow Camera</button>
+    </div>
+
+    <!-- ONNX model not found overlay -->
+    <div id="onnxOverlay">
+      <div class="onnx-msg">
+        <strong>⚠ Flask server not reachable</strong>
+        Make sure the Python server is running:<br><br>
+        <code>python src/run_app.py</code><br><br>
+        Then open: <code>http://localhost:5000/camera</code><br><br>
+        The app will run in <strong>landmark-only mode</strong> until the server responds.
+      </div>
+    </div>
+  </main>
+
+  <!-- ── RIGHT PANEL ── -->
+  <aside id="right-panel">
+
+    <!-- Big letter prediction -->
+    <div class="pred-main">
+      <div class="pred-eyebrow">Current Sign</div>
+      <div class="pred-letter-big" id="predLetter">—</div>
+      <div class="pred-name" id="predName">Waiting for hand…</div>
+    </div>
+
+    <!-- Confidence bar -->
+    <div class="conf-section">
+      <div class="conf-header">
+        <div class="conf-lbl">Confidence</div>
+        <div class="conf-pct" id="confPct">0%</div>
+      </div>
+      <div class="conf-bar-track">
+        <div class="conf-bar-fill" id="confBar"></div>
+      </div>
+    </div>
+
+    <!-- Top-5 class probabilities -->
+    <div class="probs-section">
+      <div class="panel-label" style="margin-bottom:.6rem">Top Candidates</div>
+      <div id="probRows"></div>
+    </div>
+
+    <!-- Stability ring -->
+    <div class="stability-section">
+      <div class="stab-ring-wrap">
+        <svg width="52" height="52" viewBox="0 0 52 52">
+          <circle class="stab-ring-track" cx="26" cy="26" r="20"/>
+          <circle class="stab-ring-fill"  cx="26" cy="26" r="20"
+            id="stabRing"
+            stroke-dasharray="125.7"
+            stroke-dashoffset="125.7"/>
+        </svg>
+      </div>
+      <div class="stab-info">
+        <div class="stab-lbl">Sign stability</div>
+        <div class="stab-val" id="stabVal">0%</div>
+      </div>
+    </div>
+
+    <!-- Mini landmark view -->
+    <div class="lm-section">
+      <div class="panel-label" style="margin-bottom:.5rem">Hand Skeleton</div>
+      <div class="lm-canvas-wrap">
+        <canvas id="lmCanvas"></canvas>
+      </div>
+    </div>
+
+    <!-- Phrase -->
+    <div class="phrase-section">
+      <div class="panel-label" style="margin-bottom:.5rem">Phrase</div>
+      <div id="phraseDisplay">—</div>
+      <div class="phrase-controls">
+        <button class="btn-sm" id="btnClear">Clear</button>
+        <button class="btn-sm" id="btnBack">⌫ Back</button>
+        <button class="btn-sm" id="btnSpace">Space</button>
+      </div>
+    </div>
+
+    <!-- Instructions -->
+    <div class="instr-section">
+      <div class="panel-label" style="margin-bottom:.5rem">Controls</div>
+      <div class="instr-row"><span class="instr-key">C</span> Clear phrase</div>
+      <div class="instr-row"><span class="instr-key">⌫</span> Backspace</div>
+      <div class="instr-row"><span class="instr-key">Space</span> Word space</div>
+      <div class="instr-row"><span class="instr-key">F</span> Flip camera</div>
+      <div class="instr-row"><span class="instr-key">L</span> Toggle landmarks</div>
+    </div>
+
+  </aside>
+
+</div>
+
+<!-- ══════════════════════════════════════════════
+     JAVASCRIPT — Full inference pipeline
+══════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+/* ── CONFIG ──────────────────────────────────── */
+const CLASSES = [
+  'A','B','C','D','E','F','G','H','I','J','K','L','M',
+  'N','O','P','Q','R','S','T','U','V','W','X','Y','Z',
+  '0','1','2','3','4','5','6','7','8','9'
+];
+
+const SIGN_NAMES = {
+  A:'Alpha',B:'Bravo',C:'Charlie',D:'Delta',E:'Echo',F:'Foxtrot',
+  G:'Golf',H:'Hotel',I:'India',J:'Juliet',K:'Kilo',L:'Lima',
+  M:'Mike',N:'November',O:'Oscar',P:'Papa',Q:'Quebec',R:'Romeo',
+  S:'Sierra',T:'Tango',U:'Uniform',V:'Victor',W:'Whiskey',
+  X:'X-Ray',Y:'Yankee',Z:'Zulu',
+  '0':'Zero','1':'One','2':'Two','3':'Three','4':'Four',
+  '5':'Five','6':'Six','7':'Seven','8':'Eight','9':'Nine'
+};
+
+const MP_CONNECTIONS = [
+  [0,1],[1,2],[2,3],[3,4],      // thumb
+  [0,5],[5,6],[6,7],[7,8],      // index
+  [0,9],[9,10],[10,11],[11,12], // middle
+  [0,13],[13,14],[14,15],[15,16],// ring
+  [0,17],[17,18],[18,19],[19,20],// pinky
+  [5,9],[9,13],[13,17]          // palm
+];
+
+/* ── STATE ───────────────────────────────────── */
+let onnxSession   = null;
+let onnxReady     = false;
+let cameraReady   = false;
+let handResults   = null;
+let currentSign   = null;
+let currentConf   = 0;
+let phrase        = [];
+let stabBuf       = [];
+let historyItems  = [];
+let flipCamera    = false;
+let showLandmarks = true;
+let showConns     = true;
+let confThresh    = 0.75;
+let holdFrames    = 12;
+let frameCount    = 0;
+let lastFpsTime   = performance.now();
+let fps           = 0;
+let animFrame     = null;
+
+/* ── DOM ─────────────────────────────────────── */
+const videoEl      = document.getElementById('videoEl');
+const canvasEl     = document.getElementById('canvasEl');
+const ctx          = canvasEl.getContext('2d');
+const lmCanvas     = document.getElementById('lmCanvas');
+const lmCtx        = lmCanvas.getContext('2d');
+const loadOverlay  = document.getElementById('loadOverlay');
+const permOverlay  = document.getElementById('permOverlay');
+const onnxOverlay  = document.getElementById('onnxOverlay');
+const statusPill   = document.getElementById('statusPill');
+const statusText   = document.getElementById('statusText');
+const fpsBadge     = document.getElementById('fpsBadge');
+const predLetter   = document.getElementById('predLetter');
+const predName     = document.getElementById('predName');
+const confBar      = document.getElementById('confBar');
+const confPct      = document.getElementById('confPct');
+const probRows     = document.getElementById('probRows');
+const stabRing     = document.getElementById('stabRing');
+const stabVal      = document.getElementById('stabVal');
+const phraseDisp   = document.getElementById('phraseDisplay');
+const historyList  = document.getElementById('history-list');
+
+/* ── CURSOR ──────────────────────────────────── */
+const cur  = document.getElementById('cur');
+const curR = document.getElementById('curR');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove', e => {
+  mx=e.clientX; my=e.clientY;
+  cur.style.left=mx+'px'; cur.style.top=my+'px';
+});
+(function animCur(){
+  rx+=(mx-rx)*0.12; ry+=(my-ry)*0.12;
+  curR.style.left=rx+'px'; curR.style.top=ry+'px';
+  requestAnimationFrame(animCur);
+})();
+
+/* ── NORMALIZE LANDMARKS ─────────────────────── */
+function normalizeLandmarks(lm) {
+  // lm: array of {x,y,z} objects, length 21
+  const arr = lm.map(p => [p.x, p.y, p.z]);
+  // Root-relative: subtract wrist
+  const wx = arr[0][0], wy = arr[0][1], wz = arr[0][2];
+  const rel = arr.map(p => [p[0]-wx, p[1]-wy, p[2]-wz]);
+  // Scale normalization
+  const dists = rel.map(p => Math.sqrt(p[0]**2 + p[1]**2 + p[2]**2));
+  const scale = Math.max(...dists) + 1e-6;
+  const normed = rel.map(p => p.map(v => v/scale));
+  // Flatten to Float32Array of length 63
+  const flat = new Float32Array(63);
+  normed.forEach((p,i) => { flat[i*3]=p[0]; flat[i*3+1]=p[1]; flat[i*3+2]=p[2]; });
+  return flat;
+}
+
+/* ── SOFTMAX ─────────────────────────────────── */
+function softmax(arr) {
+  const max = Math.max(...arr);
+  const exp = arr.map(x => Math.exp(x - max));
+  const sum = exp.reduce((a,b) => a+b, 0);
+  return exp.map(x => x/sum);
+}
+
+/* ── SERVER-SIDE INFERENCE via Flask /api/predict ── */
+async function runONNX(landmarks) {
+  if (!onnxReady) return null;
+  try {
+    // Convert MediaPipe landmarks [{x,y,z}] → [[x,y,z], ...]
+    const lmArray = landmarks.map(p => [p.x, p.y, p.z]);
+    const res = await fetch('/api/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ landmarks: lmArray }),
+      signal: AbortSignal.timeout(300)
+    });
+    const data = await res.json();
+    if (data.error) { console.warn('[api]', data.error); return null; }
+    // Return probs array aligned with CLASSES
+    return data.probs;
+  } catch(e) {
+    // Timeout or network error — skip this frame silently
+    return null;
+  }
+}
+
+/* ── FETCH MODEL INFO FROM FLASK SERVER ──────── */
+async function fetchModelInfo() {
+  try {
+    const res  = await fetch('/api/model_info', { signal: AbortSignal.timeout(2000) });
+    const info = await res.json();
+    const el = document.getElementById('modelStats');
+    if (el && info) {
+      el.innerHTML =
+        `<span class="ms-item">Classes: <b>${info.num_classes}</b></span>` +
+        (info.val_acc ? `<span class="ms-item">Val Acc: <b>${info.val_acc}%</b></span>` : '') +
+        (info.epoch   ? `<span class="ms-item">Epoch: <b>${info.epoch}</b></span>` : '');
+      el.style.display = 'flex';
+    }
+    return info;
+  } catch { return null; }
+}
+
+/* ── LOAD MODEL — server-side inference via Flask API ── */
+// No ONNX file needed in the browser.
+// Landmarks are sent to /api/predict → Flask runs inference → returns result.
+async function loadONNX() {
+  setLoadStep('step-onnx', 'active');
+  try {
+    const res  = await fetch('/api/health', { signal: AbortSignal.timeout(2000) });
+    const data = await res.json();
+    if (data.status === 'ok') {
+      onnxReady = true;
+      setLoadStep('step-onnx', 'done');
+      console.log('[api] Flask inference server ready. Classes:', data.classes);
+    } else {
+      throw new Error('Server not ready');
+    }
+  } catch(e) {
+    console.warn('[api] Flask server not reachable:', e.message);
+    setLoadStep('step-onnx', 'done');
+    onnxOverlay.classList.add('show');
+    setTimeout(() => onnxOverlay.classList.remove('show'), 6000);
+  }
+}
+
+/* ── MEDIAPIPE SETUP ─────────────────────────── */
+let mpHands = null;
+
+async function setupMediaPipe() {
+  return new Promise((resolve) => {
+    mpHands = new Hands({
+      locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
+    });
+    mpHands.setOptions({
+      maxNumHands: 1,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.6,
+      minTrackingConfidence: 0.5
+    });
+    mpHands.onResults(onHandResults);
+    mpHands.initialize().then(() => {
+      setLoadStep('step-mp', 'done');
+      resolve();
+    });
+  });
+}
+
+/* ── HAND RESULTS CALLBACK ───────────────────── */
+async function onHandResults(results) {
+  handResults = results;
+  frameCount++;
+  const now = performance.now();
+  if (now - lastFpsTime > 500) {
+    fps = Math.round(frameCount / ((now - lastFpsTime) / 1000));
+    frameCount = 0;
+    lastFpsTime = now;
+    fpsBadge.textContent = fps + ' fps';
+  }
+
+  drawFrame(results);
+
+  if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+    const lm = results.multiHandLandmarks[0];
+    drawMiniLandmarks(lm);
+
+    // Run ONNX inference
+    const probs = await runONNX(lm);
+    if (probs) {
+      const topIdx  = probs.indexOf(Math.max(...probs));
+      const topConf = probs[topIdx];
+      currentSign = CLASSES[topIdx];
+      currentConf = topConf;
+
+      updatePrediction(probs, topIdx, topConf);
+      updateStability(currentSign);
+      if (document.getElementById('autoCommit').checked) {
+        tryCommitPhrase(currentSign, topConf);
+      }
+    }
+  } else {
+    // No hand
+    currentSign = null;
+    currentConf = 0;
+    stabBuf = [];
+    updateNoPrediction();
+    clearMiniLandmarks();
+  }
+}
+
+/* ── DRAW MAIN CANVAS ────────────────────────── */
+function drawFrame(results) {
+  const w = canvasEl.width  = canvasEl.offsetWidth;
+  const h = canvasEl.height = canvasEl.offsetHeight;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // Draw video frame (mirrored by CSS)
+  if (results.image) {
+    ctx.save();
+    if (flipCamera) {
+      ctx.translate(w, 0);
+      ctx.scale(-1, 1);
+    }
+    ctx.drawImage(results.image, 0, 0, w, h);
+    ctx.restore();
+  }
+
+  if (!results.multiHandLandmarks) return;
+
+  for (const lm of results.multiHandLandmarks) {
+    const pts = lm.map(p => ({
+      x: flipCamera ? (1 - p.x) * w : p.x * w,
+      y: p.y * h
+    }));
+
+    // Draw connections
+    if (showConns) {
+      ctx.strokeStyle = 'rgba(34,201,122,0.45)';
+      ctx.lineWidth   = 1.5;
+      for (const [a,b] of MP_CONNECTIONS) {
+        ctx.beginPath();
+        ctx.moveTo(pts[a].x, pts[a].y);
+        ctx.lineTo(pts[b].x, pts[b].y);
+        ctx.stroke();
+      }
+    }
+
+    // Draw landmark dots
+    if (showLandmarks) {
+      pts.forEach((p, i) => {
+        const isTip = [4,8,12,16,20].includes(i);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, isTip ? 6 : 4, 0, Math.PI*2);
+        ctx.fillStyle = isTip ? '#22c97a' : 'rgba(34,201,122,0.7)';
+        ctx.fill();
+        if (isTip) {
+          ctx.strokeStyle = 'rgba(34,201,122,0.3)';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+      });
+    }
+
+    // Bounding box
+    const xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
+    const bx = Math.min(...xs)-20, by = Math.min(...ys)-20;
+    const bw = Math.max(...xs)-bx+40, bh = Math.max(...ys)-by+40;
+    ctx.strokeStyle = 'rgba(34,201,122,0.25)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4,4]);
+    ctx.strokeRect(bx, by, bw, bh);
+    ctx.setLineDash([]);
+
+    // Prediction label on canvas
+    if (currentSign && currentConf >= confThresh) {
+      ctx.font = `bold ${Math.min(bw*0.7, 80)}px 'Bebas Neue'`;
+      ctx.fillStyle = 'rgba(10,10,10,0.8)';
+      ctx.fillRect(bx, by-50, bw, 46);
+      ctx.fillStyle = '#22c97a';
+      ctx.textAlign = 'center';
+      ctx.fillText(currentSign, bx + bw/2, by - 12);
+      ctx.font = `300 11px 'DM Mono'`;
+      ctx.fillStyle = 'rgba(34,201,122,0.6)';
+      ctx.fillText((currentConf*100).toFixed(0)+'%', bx + bw/2 + 28, by - 14);
+      ctx.textAlign = 'left';
+    }
+  }
+}
+
+/* ── DRAW MINI LANDMARK CANVAS ───────────────── */
+function drawMiniLandmarks(lm) {
+  const w = lmCanvas.width  = lmCanvas.offsetWidth  * devicePixelRatio || 200;
+  const h = lmCanvas.height = lmCanvas.offsetHeight * devicePixelRatio || 120;
+  lmCtx.clearRect(0,0,w,h);
+
+  const pad = 12;
+  const pts = lm.map(p => ({
+    x: p.x * (w - pad*2) + pad,
+    y: p.y * (h - pad*2) + pad
+  }));
+
+  // Connections
+  lmCtx.strokeStyle = 'rgba(34,201,122,0.3)';
+  lmCtx.lineWidth   = 1;
+  for (const [a,b] of MP_CONNECTIONS) {
+    lmCtx.beginPath();
+    lmCtx.moveTo(pts[a].x, pts[a].y);
+    lmCtx.lineTo(pts[b].x, pts[b].y);
+    lmCtx.stroke();
+  }
+
+  // Dots
+  pts.forEach((p,i) => {
+    lmCtx.beginPath();
+    lmCtx.arc(p.x, p.y, [4,8,12,16,20].includes(i)?3:2, 0, Math.PI*2);
+    lmCtx.fillStyle = [4,8,12,16,20].includes(i) ? '#22c97a' : 'rgba(34,201,122,0.5)';
+    lmCtx.fill();
+  });
+}
+
+function clearMiniLandmarks() {
+  const w = lmCanvas.width || 200;
+  const h = lmCanvas.height || 120;
+  lmCtx.clearRect(0,0,w,h);
+  lmCtx.font = '0.65rem DM Mono';
+  lmCtx.fillStyle = 'rgba(85,81,80,0.5)';
+  lmCtx.textAlign = 'center';
+  lmCtx.fillText('No hand detected', w/2, h/2);
+  lmCtx.textAlign = 'left';
+}
+
+/* ── UPDATE PREDICTION UI ────────────────────── */
+function updatePrediction(probs, topIdx, topConf) {
+  const sign = CLASSES[topIdx];
+  const conf = topConf;
+  const pct  = Math.round(conf * 100);
+  const show = conf >= confThresh;
+
+  predLetter.textContent = show ? sign : '?';
+  predName.textContent   = show ? (SIGN_NAMES[sign] || sign) : 'Low confidence…';
+
+  confBar.style.width = pct + '%';
+  confBar.className   = 'conf-bar-fill' + (pct < 50 ? ' low' : pct < 75 ? ' mid' : '');
+  confPct.textContent = pct + '%';
+
+  // Top 5 probs
+  const ranked = probs
+    .map((p,i) => ({c:CLASSES[i], p}))
+    .sort((a,b) => b.p - a.p)
+    .slice(0, 5);
+
+  probRows.innerHTML = ranked.map((r,i) => `
+    <div class="prob-row">
+      <div class="prob-cls ${i===0?'top':''}">${r.c}</div>
+      <div class="prob-bar-track">
+        <div class="prob-bar-fill ${i===0?'top':''}" style="width:${(r.p*100).toFixed(1)}%"></div>
+      </div>
+      <div class="prob-val">${(r.p*100).toFixed(0)}%</div>
+    </div>`).join('');
+}
+
+function updateNoPrediction() {
+  predLetter.textContent = '—';
+  predName.textContent   = 'Waiting for hand…';
+  confBar.style.width    = '0%';
+  confPct.textContent    = '0%';
+  stabVal.textContent    = '0%';
+  stabRing.style.strokeDashoffset = '125.7';
+  probRows.innerHTML     = '';
+}
+
+/* ── STABILITY TRACKING ──────────────────────── */
+function updateStability(sign) {
+  stabBuf.push(sign);
+  if (stabBuf.length > holdFrames) stabBuf.shift();
+
+  const topSign  = stabBuf.sort((a,b) =>
+    stabBuf.filter(v=>v===b).length - stabBuf.filter(v=>v===a).length)[0];
+  const stabCount = stabBuf.filter(v=>v===topSign).length;
+  const stabPct   = Math.round(stabCount / holdFrames * 100);
+
+  stabVal.textContent = stabPct + '%';
+  const circ = 125.7;
+  stabRing.style.strokeDashoffset = circ - (circ * stabPct/100);
+}
+
+/* ── PHRASE BUILDER ──────────────────────────── */
+let lastCommitted = null;
+
+function tryCommitPhrase(sign, conf) {
+  if (conf < confThresh) return;
+  if (stabBuf.length < holdFrames) return;
+  const allSame = stabBuf.every(s => s === sign);
+  if (allSame && sign !== lastCommitted) {
+    lastCommitted = sign;
+    phrase.push(sign);
+    updatePhrase();
+    addHistory(sign, conf);
+    // Flash the letter
+    predLetter.classList.remove('flash');
+    void predLetter.offsetWidth; // reflow
+    predLetter.classList.add('flash');
+  }
+  if (!allSame) lastCommitted = null;
+}
+
+function updatePhrase() {
+  phraseDisp.textContent = phrase.length ? phrase.join('') : '—';
+}
+
+function addHistory(sign, conf) {
+  const now = new Date();
+  const timeStr = now.toTimeString().split(' ')[0].slice(3);
+  const el = document.createElement('div');
+  el.className = 'history-item';
+  el.innerHTML = `
+    <div class="hi-letter">${sign}</div>
+    <div class="hi-conf"><div class="hi-conf-fill" style="width:${Math.round(conf*100)}%"></div></div>
+    <div class="hi-time">${timeStr}</div>`;
+  historyList.prepend(el);
+  if (historyList.children.length > 30) historyList.lastChild.remove();
+}
+
+/* ── CAMERA SETUP ────────────────────────────── */
+async function setupCamera() {
+  setLoadStep('step-cam', 'active');
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { width:1280, height:720, facingMode:'user' },
+      audio: false
+    });
+    videoEl.srcObject = stream;
+    videoEl.style.display = 'block';
+    await new Promise(r => videoEl.onloadedmetadata = r);
+    await videoEl.play();
+    setLoadStep('step-cam', 'done');
+    cameraReady = true;
+    return true;
+  } catch(e) {
+    console.warn('[cam] Error:', e);
+    setLoadStep('step-cam', '');
+    permOverlay.classList.add('show');
+    return false;
+  }
+}
+
+/* ── START MEDIAPIPE CAMERA LOOP ─────────────── */
+function startProcessing() {
+  const mpCamera = new Camera(videoEl, {
+    onFrame: async () => {
+      await mpHands.send({ image: videoEl });
+    },
+    width: 1280,
+    height: 720
+  });
+  mpCamera.start();
+}
+
+/* ── STATUS HELPERS ──────────────────────────── */
+function setStatus(state, text) {
+  statusPill.className = 'status-pill ' + state;
+  statusText.textContent = text;
+}
+function setLoadStep(id, state) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = 'load-step ' + state;
+  if (state === 'done') el.querySelector('.load-step-icon').textContent = '✓';
+}
+
+/* ── CONTROLS ────────────────────────────────── */
+document.getElementById('confThresh').addEventListener('input', function() {
+  confThresh = this.value / 100;
+  document.getElementById('confThreshVal').textContent = this.value + '%';
+});
+document.getElementById('holdFrames').addEventListener('input', function() {
+  holdFrames = parseInt(this.value);
+  document.getElementById('holdVal').textContent = this.value;
+});
+document.getElementById('showLandmarks').addEventListener('change', function() {
+  showLandmarks = this.checked;
+});
+document.getElementById('showConnections').addEventListener('change', function() {
+  showConns = this.checked;
+});
+document.getElementById('showScanline').addEventListener('change', function() {
+  document.getElementById('scanlineEl').style.display = this.checked ? '' : 'none';
+});
+document.getElementById('btnFlip').addEventListener('click', function() {
+  flipCamera = !flipCamera;
+  this.classList.toggle('active');
+});
+document.getElementById('btnLandmarks').addEventListener('click', function() {
+  showLandmarks = !showLandmarks;
+  showConns = showLandmarks;
+  this.classList.toggle('active');
+  document.getElementById('showLandmarks').checked = showLandmarks;
+  document.getElementById('showConnections').checked = showConns;
+});
+document.getElementById('btnFullscreen').addEventListener('click', function() {
+  if (!document.fullscreenElement) {
+    document.getElementById('centre').requestFullscreen();
+    this.textContent = 'Exit Full';
+  } else {
+    document.exitFullscreen();
+    this.textContent = 'Fullscreen';
+  }
+});
+document.getElementById('btnClear').addEventListener('click', () => {
+  phrase = []; lastCommitted = null; stabBuf = []; updatePhrase();
+});
+document.getElementById('btnBack').addEventListener('click', () => {
+  phrase.pop(); updatePhrase();
+});
+document.getElementById('btnSpace').addEventListener('click', () => {
+  phrase.push(' '); updatePhrase();
+});
+document.getElementById('btnGrantPerm').addEventListener('click', async () => {
+  permOverlay.classList.remove('show');
+  const ok = await setupCamera();
+  if (ok) {
+    startProcessing();
+    setStatus('ready', 'Live');
+  }
+});
+
+/* Keyboard shortcuts */
+document.addEventListener('keydown', e => {
+  if (e.key.toLowerCase() === 'c') { phrase=[]; lastCommitted=null; stabBuf=[]; updatePhrase(); }
+  if (e.key === 'Backspace') { phrase.pop(); updatePhrase(); }
+  if (e.key === ' ') { e.preventDefault(); phrase.push(' '); updatePhrase(); }
+  if (e.key.toLowerCase() === 'f') { document.getElementById('btnFlip').click(); }
+  if (e.key.toLowerCase() === 'l') { document.getElementById('btnLandmarks').click(); }
+});
+
+/* ── INIT ────────────────────────────────────── */
+async function init() {
+  setStatus('loading', 'Loading…');
+
+  // 0. Fetch model metadata from Flask server (non-blocking)
+  fetchModelInfo();
+
+  // 1. Load MediaPipe
+  await setupMediaPipe();
+
+  // 2. Load ONNX model
+  await loadONNX();
+
+  // 3. Camera
+  const camOk = await setupCamera();
+
+  // 4. Hide loading overlay
+  loadOverlay.classList.add('hidden');
+
+  if (camOk) {
+    startProcessing();
+    setStatus('ready', 'Live');
+  } else {
+    setStatus('error', 'Camera error');
+  }
+}
+
+// Start when page is ready
+window.addEventListener('load', init);
+
+// Resize canvas on window resize
+window.addEventListener('resize', () => {
+  canvasEl.width  = canvasEl.offsetWidth;
+  canvasEl.height = canvasEl.offsetHeight;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+data_root: data/sequences
+checkpoint_dir: checkpoints
+export_dir: exports
+epochs: 80
+batch: 32
+lr: 0.0005
+hidden_size: 128
+num_layers: 2
+dropout: 0.3
+sequence_length: 30
+val_split: 0.15
+label_smoothing: 0.1
+weight_decay: 0.0001
+min_detection_confidence: 0.80
+conf_threshold: 0.70
+
+# WLASL-100 top words (extend as needed)
+classes:
+  - hello
+  - thank you
+  - please
+  - sorry
+  - yes
+  - no
+  - help
+  - good
+  - bad
+  - name
+  - what
+  - where
+  - who
+  - how
+  - want
+  - need
+  - like
+  - love
+  - eat
+  - drink
+  - water
+  - food
+  - home
+  - school
+  - work
+  - time
+  - today
+  - tomorrow
+  - yesterday
+  - more
