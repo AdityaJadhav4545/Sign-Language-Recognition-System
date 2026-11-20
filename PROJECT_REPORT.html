@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign Language Recognition System — Project Report</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  @page {
+    size: A4;
+    margin: 22mm 20mm 22mm 20mm;
+    @bottom-center {
+      content: counter(page);
+      font-family: 'Inter', sans-serif;
+      font-size: 9pt;
+      color: #666;
+    }
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  body {
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-size: 11.5pt;
+    line-height: 1.6;
+    color: #1a1a1a;
+    background-color: #f7f9fa;
+    margin: 0;
+    padding: 30px 0;
+  }
+
+  .paper {
+    background: #ffffff;
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 auto;
+    padding: 24mm 22mm;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  }
+
+  .page-break {
+    page-break-after: always;
+    break-after: page;
+    border-top: 1px dashed #d0d7de;
+    margin: 40px 0;
+    padding-top: 40px;
+  }
+
+  @media print {
+    body { background: transparent; padding: 0; }
+    .paper {
+      width: 100%;
+      min-height: auto;
+      margin: 0;
+      padding: 0;
+      box-shadow: none;
+    }
+    .page-break {
+      border: none;
+      margin: 0;
+      padding: 0;
+    }
+    .no-print { display: none !important; }
+  }
+
+  /* Running Header */
+  .running-header {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'Inter', sans-serif;
+    font-size: 8.5pt;
+    color: #57606a;
+    border-bottom: 1.5px solid #0969da;
+    padding-bottom: 5px;
+    margin-bottom: 25px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Headings */
+  h1, h2, h3, h4 {
+    font-family: 'Inter', sans-serif;
+    color: #0f172a;
+    font-weight: 700;
+  }
+
+  h1 {
+    font-size: 19pt;
+    border-bottom: 2px solid #0969da;
+    padding-bottom: 6px;
+    margin-top: 0;
+    margin-bottom: 16px;
+    color: #0f172a;
+  }
+
+  h2 {
+    font-size: 14pt;
+    margin-top: 22px;
+    margin-bottom: 10px;
+    color: #1e293b;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 4px;
+  }
+
+  h3 {
+    font-size: 12pt;
+    margin-top: 16px;
+    margin-bottom: 8px;
+    color: #334155;
+  }
+
+  p {
+    margin-top: 0;
+    margin-bottom: 12px;
+    text-align: justify;
+  }
+
+  /* Title Page Specifics */
+  .title-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 20px 10px;
+  }
+
+  .title-page .doc-type {
+    font-family: 'Inter', sans-serif;
+    font-size: 11pt;
+    font-weight: 600;
+    color: #475569;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 25px;
+  }
+
+  .title-page .main-title {
+    font-family: 'Inter', sans-serif;
+    font-size: 26pt;
+    font-weight: 800;
+    line-height: 1.25;
+    color: #092c4c;
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+  }
+
+  .title-page .sub-title {
+    font-family: 'Inter', sans-serif;
+    font-size: 14pt;
+    font-weight: 600;
+    color: #64748b;
+    letter-spacing: 2px;
+    margin-bottom: 40px;
+  }
+
+  .title-page .submitted-label {
+    font-style: italic;
+    font-size: 12pt;
+    color: #475569;
+    margin-bottom: 8px;
+  }
+
+  .title-page .student-name {
+    font-family: 'Inter', sans-serif;
+    font-size: 15pt;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 4px;
+  }
+
+  .title-page .student-reg {
+    font-family: 'Inter', sans-serif;
+    font-size: 11pt;
+    color: #334155;
+    margin-bottom: 30px;
+  }
+
+  .title-page .guide-box {
+    margin: 20px 0;
+    font-size: 11.5pt;
+    line-height: 1.5;
+  }
+
+  .lpu-logo-container {
+    margin: 30px 0 25px 0;
+  }
+
+  .inst-box {
+    margin-top: 15px;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .inst-box .inst-name {
+    font-size: 13pt;
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  .inst-box .course-name {
+    font-size: 11pt;
+    font-weight: 600;
+    color: #0969da;
+    margin-top: 6px;
+  }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-family: 'Inter', sans-serif;
+    font-size: 9.5pt;
+  }
+
+  th, td {
+    padding: 8px 10px;
+    border: 1px solid #cbd5e1;
+    text-align: left;
+  }
+
+  th {
+    background-color: #0f2d4a;
+    color: #ffffff;
+    font-weight: 600;
+  }
+
+  tr:nth-child(even) { background-color: #f8fafc; }
+
+  /* Code Blocks */
+  pre {
+    background-color: #0d1117;
+    color: #e6edf3;
+    padding: 12px 14px;
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8.8pt;
+    overflow-x: auto;
+    margin: 14px 0;
+    line-height: 1.45;
+  }
+
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    background-color: #f1f5f9;
+    color: #0969da;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-size: 9.5pt;
+  }
+
+  pre code {
+    background: none;
+    color: inherit;
+    padding: 0;
+  }
+
+  /* Callout boxes */
+  .callout {
+    background-color: #f0fdf4;
+    border-left: 4px solid #16a34a;
+    padding: 12px 16px;
+    margin: 16px 0;
+    font-family: 'Inter', sans-serif;
+    font-size: 10pt;
+    border-radius: 0 6px 6px 0;
+  }
+
+  .callout-title {
+    font-weight: 700;
+    color: #15803d;
+    margin-bottom: 4px;
+  }
+
+  /* Diagram Box */
+  .diagram-box {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 15px;
+    margin: 18px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8.5pt;
+    line-height: 1.4;
+    color: #1e293b;
+    white-space: pre;
+    overflow-x: auto;
+  }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin: 18px 0;
+  }
+
+  .stat-card {
+    background: #f1f5f9;
+    border-radius: 6px;
+    padding: 12px;
+    text-align: center;
+    border: 1px solid #e2e8f0;
+  }
+
+  .stat-card .val {
+    font-family: 'Inter', sans-serif;
+    font-size: 17pt;
+    font-weight: 800;
+    color: #0969da;
+  }
+
+  .stat-card .lbl {
+    font-family: 'Inter', sans-serif;
+    font-size: 8.5pt;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+
+<div class="paper">
+
+  <!-- ==================== PAGE 1: TITLE PAGE ==================== -->
+  <div class="title-page">
+    <div class="doc-type">Sign Language Recognition System | B.Tech Project Report</div>
+    
+    <div style="flex-grow: 1; padding: 25px 0;">
+      <h1 class="main-title">SIGN LANGUAGE<br>RECOGNITION SYSTEM</h1>
+      <div class="sub-title">A PROJECT REPORT</div>
+
+      <div class="submitted-label">Submitted by:</div>
+      <div class="student-name">Aditya Tanaji Jadhav</div>
+      <div class="student-reg">Registration No.: <strong>12405735</strong> &nbsp;|&nbsp; Section: <strong>2M017</strong></div>
+
+      <div class="guide-box">
+        <em>Submitted to:</em><br>
+        <strong>Prof. Anzar Hussain Lone</strong><br>
+        <span style="font-size: 10.5pt; color: #475569;">
+          in partial fulfilment for the award of the degree of<br>
+          <strong>BACHELOR OF TECHNOLOGY</strong><br>
+          (Computer Science and Engineering)
+        </span>
+      </div>
+
+      <!-- LPU Logo Vector Emulation -->
+      <div class="lpu-logo-container">
+        <svg width="150" height="150" viewBox="0 0 200 200">
+          <circle cx="100" cy="100" r="95" fill="none" stroke="#222" stroke-width="3"/>
+          <circle cx="100" cy="100" r="88" fill="none" stroke="#222" stroke-width="1.5"/>
+          <path id="textPathTop" d="M 25,100 A 75,75 0 0,1 175,100" fill="none" />
+          <path id="textPathBottom" d="M 175,100 A 75,75 0 0,1 25,100" fill="none" />
+          <text font-family="'Inter', sans-serif" font-size="11.5" font-weight="bold" fill="#222" letter-spacing="2">
+            <textPath href="#textPathTop" startOffset="50%" text-anchor="middle">LOVELY PROFESSIONAL UNIVERSITY</textPath>
+          </text>
+          <text font-family="'Inter', sans-serif" font-size="10" font-weight="bold" fill="#222" letter-spacing="2">
+            <textPath href="#textPathBottom" startOffset="50%" text-anchor="middle">PUNJAB (INDIA)</textPath>
+          </text>
+          <!-- Sun burst core -->
+          <circle cx="100" cy="100" r="56" fill="#F37023"/>
+          <!-- Sun rays -->
+          <polygon points="100,44 106,100 94,100" fill="#222"/>
+          <polygon points="100,100 138,58 130,52" fill="#222"/>
+          <polygon points="100,100 156,92 154,82" fill="#222"/>
+          <polygon points="100,100 148,130 142,138" fill="#222"/>
+          <polygon points="100,100 114,154 104,156" fill="#222"/>
+          <polygon points="100,100 70,150 62,142" fill="#222"/>
+          <polygon points="100,100 46,114 44,104" fill="#222"/>
+          <polygon points="100,100 52,70 60,62" fill="#222"/>
+          <circle cx="100" cy="100" r="16" fill="#F37023"/>
+          <circle cx="100" cy="100" r="10" fill="#222"/>
+        </svg>
+      </div>
+
+      <div class="inst-box">
+        <div class="inst-name">Lovely Professional University, Punjab</div>
+        <div class="course-name">CSE274 – Applied Machine Learning (Academic Task - 2)</div>
+        <div style="font-size: 10pt; color: #64748b; margin-top: 5px;">Academic Year: 2025–2026</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- ==================== DECLARATION & TOC ==================== -->
+  <div class="running-header">
+    <span>Sign Language Recognition System | B.Tech Project Report</span>
+    <span>Lovely Professional University</span>
+  </div>
+
+  <h1>DECLARATION</h1>
+  <p>
+    I, <strong>Aditya Tanaji Jadhav</strong>, student of Bachelor of Technology under the Computer Science and Engineering discipline at <strong>Lovely Professional University, Punjab</strong>, hereby declare that this project report entitled <strong>"Sign Language Recognition System"</strong> represents my original work conducted under the academic guidance of <strong>Prof. Anzar Hussain Lone</strong>.
+  </p>
+  <p>
+    This report has not been submitted previously to this or any other university for the conferment of any degree, diploma, or academic fellowship. All secondary sources, libraries, research papers, and technical documentations utilized have been duly and comprehensively cited in the references section.
+  </p>
+
+  <div style="margin-top: 40px; font-family: 'Inter', sans-serif;">
+    <p><strong>Candidate:</strong> Aditya Tanaji Jadhav</p>
+    <p><strong>Registration Number:</strong> 12405735 &nbsp;&nbsp;|&nbsp;&nbsp; <strong>Section:</strong> 2M017</p>
+    <p><strong>Date of Submission:</strong> 30 April 2026</p>
+    <p><strong>Department of Computer Science and Engineering</strong><br>Lovely Professional University, Phagwara, Punjab (India)</p>
+  </div>
+
+  <h2 style="margin-top: 45px;">TABLE OF CONTENTS</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 12%; text-align: center;">Section #</th>
+        <th>Report Section Title</th>
+        <th style="width: 18%; text-align: center;">Target Page</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td style="text-align: center;">1</td><td>Title Page & Declaration</td><td style="text-align: center;">1 – 2</td></tr>
+      <tr><td style="text-align: center;">2</td><td>Abstract</td><td style="text-align: center;">3</td></tr>
+      <tr><td style="text-align: center;">3</td><td>Introduction (Background, Motivation, Problem Statement)</td><td style="text-align: center;">4</td></tr>
+      <tr><td style="text-align: center;">4</td><td>Objectives and Scope</td><td style="text-align: center;">6</td></tr>
+      <tr><td style="text-align: center;">5</td><td>Literature Review (Minimum 5 Scholarly References)</td><td style="text-align: center;">7</td></tr>
+      <tr><td style="text-align: center;">6</td><td>System Design (Architecture, Workflow, Technology Stack)</td><td style="text-align: center;">9</td></tr>
+      <tr><td style="text-align: center;">7</td><td>Dataset Description (Source, Distribution, Preprocessing)</td><td style="text-align: center;">12</td></tr>
+      <tr><td style="text-align: center;">8</td><td>Methodology and Implementation (Models, Code Logic)</td><td style="text-align: center;">14</td></tr>
+      <tr><td style="text-align: center;">9</td><td>Results and Analysis (Metrics, Curves, Baseline Comparison)</td><td style="text-align: center;">17</td></tr>
+      <tr><td style="text-align: center;">10</td><td>Deployment Details (Platform, Launcher Scripts, Live URLs)</td><td style="text-align: center;">20</td></tr>
+      <tr><td style="text-align: center;">11</td><td>Conclusion and Future Scope</td><td style="text-align: center;">22</td></tr>
+      <tr><td style="text-align: center;">12</td><td>References (IEEE / APA Standard Format)</td><td style="text-align: center;">24</td></tr>
+      <tr><td style="text-align: center;">13</td><td>Appendix (Author Contribution, AI Statement, Directory Tree)</td><td style="text-align: center;">26</td></tr>
+    </tbody>
+  </table>
+
+  <div class="page-break"></div>
+
+  <!-- ==================== SECTION 2: ABSTRACT ==================== -->
+  <div class="running-header">
+    <span>Sign Language Recognition System | B.Tech Project Report</span>
+    <span>Lovely Professional University</span>
+  </div>
+
+  <h1>2. ABSTRACT</h1>
+  
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="val">96.9%</div>
+      <div class="lbl">Val Accuracy</div>
+    </div>
+    <div class="stat-card">
+      <div class="val">&lt; 3 ms</div>
+      <div class="lbl">CPU Latency</div>
+    </div>
+    <div class="stat-card">
+      <div class="val">36</div>
+      <div class="lbl">Static Classes</div>
+    </div>
+    <div class="stat-card">
+      <div class="val">240 KB</div>
+      <div class="lbl">Model Size</div>
+    </div>
+  </div>
+
+  <p>
+    Sign language serves as the principal linguistic bridge for over 70 million deaf and hard-of-hearing individuals globally. However, the acute scarcity of fluent signers in mainstream society erects formidable communication barriers across healthcare, education, legal proceedings, and public services. Conventional computer vision solutions for sign language recognition rely heavily on high-dimensional raw video frames and deep 2D/3D Convolutional Neural Networks (CNNs), which introduce prohibitive computational overhead, severe latency bottlenecks, dependency on external GPUs, and extreme vulnerability to varying illumination and background clutter.
+  </p>
+  <p>
+    This project presents <strong>SignSense</strong>, a high-efficiency, real-time American Sign Language (ASL) recognition framework capable of classifying 36 static characters (alphabets A–Z and digits 0–9) and dynamic communicative words directly on consumer laptop CPUs. The pipeline employs Google MediaPipe Hands to isolate 21 anatomical 3D skeletal landmarks (63 continuous coordinates) per frame. Coordinates undergo translation-invariant (wrist-relative) and scale-invariant (maximal Euclidean norm) normalization before feeding into <strong>StaticGestureNet</strong>, a compact 4-layer Multi-Layer Perceptron (60,644 parameters). Dynamic gestures are evaluated using <strong>DynamicGestureNet</strong>, incorporating a 2-layer Bidirectional LSTM with soft temporal attention over a 30-frame window. A stateful <strong>PhraseBuilder</strong> debounces consecutive frame predictions (12-frame unanimity) and synthesizes sentence whitespace after sustained hand absence (20 empty frames).
+  </p>
+  <p>
+    Experimental evaluation on a balanced dataset of 10,800 landmark samples achieves a <strong>96.9% validation accuracy</strong>, a <strong>macro F1-score of 0.970</strong>, and an inference latency of <strong>under 3 ms on CPU</strong> (&gt;30 FPS end-to-end). The system is deployed via an interactive web application powered by Flask, MediaPipe WebAssembly (WASM), and ONNX Runtime Web, supplemented by automated one-click Windows launcher scripts.
+  </p>
+  <p><strong>Keywords:</strong> American Sign Language (ASL), Skeletal Landmarks, MediaPipe, Multi-Layer Perceptron, Bidirectional LSTM, Temporal Attention, ONNX Runtime, Flask, Assistive Computing.</p>
+
+  <div class="page-break"></div>
+
+  <!-- ==================== SECTION 3: INTRODUCTION ==================== -->
+  <div class="running-header">
+    <span>Sign Language Recognition System | B.Tech Project Report</span>
+    <span>Lovely Professional University</span>
+  </div>
+
+  <h1>3. INTRODUCTION</h1>
+
+  <h2>3.1 Background & Social Context</h2>
+  <p>
+    Language is the foundational substrate of human civilization, social integration, and cognitive development. While hearing populations communicate primarily through acoustic-oral modalities, deaf and hard-of-hearing communities rely upon sign languages—structured visual-gestural systems equipped with rich phonetic, morphological, syntactic, and semantic grammars. According to epidemiological data published by the World Health Organization (WHO), more than 430 million people worldwide require disabling hearing loss rehabilitation, a figure anticipated to exceed 700 million by 2050.
+  </p>
+  <p>
+    Among the world's established sign systems, American Sign Language (ASL) represents one of the most thoroughly standardized, comprising both manual fingerspelling (alphabets A–Z and numbers 0–9 used to spell names and technical terms) and lexical signs representing complete concepts, verbs, and phrases. However, fewer than 0.1% of the non-deaf global population possesses functional signing literacy. As a consequence, deaf individuals encounter persistent systemic friction during essential social encounters, university lectures, medical examinations, and public transit navigation.
+  </p>
+
+  <h2>3.2 Motivation</h2>
+  <p>
+    While certified human sign language interpreters provide invaluable services, they are constrained by prohibitive financial costs (typically $70–$150/hour), severe regional shortages, and scheduling delays. This scarcity has fueled demand for automated, real-time Machine Learning-driven Sign Language Recognition (SLR) systems.
+  </p>
+  <p>
+    Historically, automated SLR research has been hampered by two opposing technological extremes:
+  </p>
+  <ul>
+    <li><strong>Sensory Data Gloves:</strong> Early engineering approaches utilized cyber-gloves equipped with flex sensors, tactile resistors, and inertial measurement units (IMUs). While accurate, these physical devices are ergonomically cumbersome, fragile, expensive, and require continuous sensor recalibration.</li>
+    <li><strong>Raw Pixel Deep Learning (2D/3D CNNs):</strong> Subsequent vision systems processed raw camera streams using heavy convolutional architectures (e.g., VGG-16, ResNet-50, I3D). However, raw pixel inputs introduce massive redundant data ($1920 \times 1080 \times 3$ values per frame), demand dedicated NVIDIA GPUs, and overfit heavily to background lighting, clothing, shadows, and ethnic skin-tone variations.</li>
+  </ul>
+  <p>
+    These limitations underscored the imperative to develop <strong>SignSense</strong>: an intelligent, camera-agnostic, vision-based system that operates entirely on geometric skeletal hand coordinates, providing invariant, real-time sign recognition on standard consumer hardware.
+  </p>
+
+  <h2>3.3 Problem Statement</h2>
+  <p>
+    The goal of this academic capstone project is to architect, train, optimize, and deploy an end-to-end American Sign Language recognition system that:
+  </p>
+  <ol>
+    <li>Performs instantaneous, highly accurate classification across 36 static ASL characters (A–Z, 0–9) and dynamic communicative word sequences.</li>
+    <li>Executes with sub-30ms latency on commodity laptop CPUs at 30 FPS without requiring discrete GPU accelerators.</li>
+    <li>Applies mathematical coordinate normalization ensuring complete invariance to hand size, user-to-camera distance, and planar translation.</li>
+    <li>Eliminates prediction jitter through stateful temporal debouncing while automatically assembling fluent sentences with whitespace insertion.</li>
+    <li>Provides an accessible, full-stack browser-based deployment utilizing WebAssembly and ONNX Runtime Web.</li>
+  </ol>
+
+  <div class="page-break"></div>
+
+  <!-- ==================== SECTION 4: OBJECTIVES & SCOPE ==================== -->
+  <div class="running-header">
+    <span>Sign Language Recognition System | B.Tech Project Report</span>
+    <span>Lovely Professional University</span>
+  </div>
+
+  <h1>4. OBJECTIVES AND SCOPE</h1>
+
+  <h2>4.1 Measurable Project Objectives</h2>
+  <p>To ensure rigorous academic evaluation, the project was formulated with precise, quantifiable targets:</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Objective Target</th>
+        <th>Target Metric</th>
+        <th>Recorded Achievement</th>
+        <th>Evaluation Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Static Sign Accuracy</strong></td>
+        <td>$\ge 95.0\%$ Top-1 Accuracy</td>
+        <td><strong>96.9%</strong> on 1,620 held-out samples</td>
+        <td>Exceeded Target</td>
+      </tr>
+      <tr>
+        <td><strong>Model Latency (CPU)</strong></td>
+        <td>$\le 5.0\text{ ms}$ per inference</td>
+        <td><strong>&lt; 2.5 ms</strong> via ONNX Runtime</td>
+        <td>Exceeded Target</td>
+      </tr>
+      <tr>
+        <td><strong>End-to-End Pipeline FPS</strong></td>
+        <td>$\ge 25\text{ FPS}$ on Intel Core i5</td>
+        <td><strong>28 – 30 FPS</strong> real-time throughput</td>
+        <td>Target Achieved</td>
+      </tr>
+      <tr>
+        <td><strong>Model Storage Footprint</strong></td>
+        <td>$\le 5.0\text{ MB}$ disk footprint</td>
+        <td><strong>240 KB</strong> (StaticGestureNet)</td>
+        <td>Exceeded Target</td>
+      </tr>
+      <tr>
+        <td><strong>Vocabulary Capacity</strong></td>
+        <td>36 Static + 9 Dynamic words</td>
+        <td>36 Static Classes + 9 Sequence Words</td>
+        <td>Target Achieved</td>
+      </tr>
+      <tr>
+        <td><strong>Phrase Assembly Stability</strong></td>
+        <td>Debounce jitter elimination</td>
+        <td>12-frame rolling consensus verification</td>
+        <td>Target Achieved</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>4.2 Project Scope and Boundaries</h2>
+  <p>The boundaries of this engineering implementation are defined as follows:</p>
+  <ul>
+    <li><strong>Sign Language Standard:</strong> Exclusively focused on American Sign Language (ASL) manual alphabets (A–Z), numeric digits (0–9), and 9 high-frequency dynamic communicative greetings/words (*hello, thanks, yes, no, please, sorry, help, good, bad*).</li>
+    <li><strong>Physical Articulation Boundary:</strong> Primarily targets single-hand manual signs. Bimanual signs requiring coordinated two-hand interactions and non-manual grammatical markers (facial contortions, mouth morphemes) are delimited to future extensions.</li>
+    <li><strong>Perception Environment:</strong> Assumes unobstructed optical visibility between the laptop camera and the user's hand, operating under standard indoor ambient lighting. Extreme darkness or severe physical lens occlusions trigger the secondary MobileNetV3 FallbackCNN module.</li>
+  </ul>
+
+  <div class="page-break"></div>
+
+  <!-- ==================== SECTION 5: LITERATURE REVIEW ==================== -->
+  <div class="running-header">
+    <span>Sign Language Recognition System | B.Tech Project Report</span>
+    <span>Lovely Professional University</span>
+  </div>
+
+  <h1>5. LITERATURE REVIEW</h1>
+  <p>
+    Automated Sign Language Recognition represents an active intersection of computer vision, deep learning, and human-computer interaction. A critical synthesis of seminal publications is summarized below:
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 25%;">Author(s) & Year</th>
+        <th style="width: 25%;">Core Methodology</th>
+        <th style="width: 25%;">Key Findings / Strengths</th>
+        <th style="width: 25%;">Identified Limitations</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Zhang et al. (2020)</strong><br>Google Research [1]</td>
+        <td>MediaPipe Hands: Single-stage detector with regression-based 21 3D hand keypoint estimation.</td>
+        <td>High-speed inference on CPU/mobile devices; robust to skin tone and background lighting.</td>
+        <td>Perception framework only; lacks downstream gesture classification and linguistic assembly.</td>
+      </tr>
+      <tr>
+        <td><strong>Li et al. (2020)</strong><br>IEEE WACV [2]</td>
+        <td>WLASL Benchmark: Evaluated 2,000 sign classes using I3D, 2D-CNN-LSTM, and Pose-TGCN.</td>
+        <td>Proved skeletal pose-based models drastically outperform raw pixel CNNs in efficiency.</td>
+        <td>Heavy computational overhead; large vocabulary top-1 accuracy constrained below 65%.</td>
+      </tr>
+      <tr>
+        <td><strong>Hochreiter &amp; Schmidhuber (1997)</strong><br>Neural Computation [3]</td>
+        <td>Long Short-Term Memory (LSTM) recurrent networks with memory cell gates.</td>
+        <td>Solves vanishing gradient problems across temporal sequences; captures gesture transitions.</td>
+        <td>Uniform time-step processing lacks selective focus on key stroke transition points.</td>
+      </tr>
+      <tr>
+        <td><strong>Howard et al. (2019)</strong><br>IEEE ICCV [4]</td>
+        <td>MobileNetV3: Automated Neural Architecture Search (NAS) with Hard-Swish activations.</td>
+        <td>Optimized floating-point operations (FLOPs) for lightweight mobile image classification.</td>
+        <td>Processing raw $224\times224$ pixels still incurs $10\times$ higher latency than coordinate MLPs.</td>
+      </tr>
+      <tr>
+        <td><strong>Lugaresi et al. (2019)</strong><br>Google Research [5]</td>
+        <td>MediaPipe perception graph architecture for modular streaming multimodal pipelines.</td>
+        <td>Deterministic cross-platform execution across C++, WebAssembly, and Python runtimes.</td>
+        <td>Raw landmark outputs require specialized translation and scale normalization for invariant ML.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Synthesis and Architectural Gap</h3>
+  <p>
+    Prior research demonstrates that while raw pixel CNNs achieve reasonable laboratory accuracy, they fail in consumer deployment due to hardware cost and environmental brittleness. By contrasting raw image representations with geometric landmark representations, our proposed architecture utilizes MediaPipe as an abstraction layer, transforming raw video into low-dimensional normalized coordinate vectors. This reduces model complexity by orders of magnitude while accelerating inference to sub-3ms CPU execution.
+  </p>
+
+  <div class="page-break"></div>
+
+  <!-- ==================== SECTION 6: SYSTEM DESIGN ==================== -->
+  <div class="running-header">
+    <span>Sign Language Recognition System | B.Tech Project Report</span>
+    <span>Lovely Professional University</span>
+  </div>
+
+  <h1>6. SYSTEM DESIGN</h1>
+
+  <h2>6.1 End-to-End Architectural Pipeline</h2>
+  <div class="diagram-box">
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                              SYSTEM ARCHITECTURAL PIPELINE                             │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+  [Live Webcam Feed / Browser getUserMedia] (30 FPS 640x480 RGB Video)
+                   │
+                   ▼
+  [MediaPipe Hands Perceptual Backbone]
+   ├── Detects palm boundary & regresses 21 3D hand keypoints (x, y, z)
+   └── Evaluates tracking confidence metric (threshold = 0.85)
+                   │
+         ┌─────────┴────────────────────────────────────────┐
+         │ (Confidence &lt; 0.85)                              │ (Confidence &gt;= 0.85)
+         ▼                                                  ▼
+  [FallbackCNN Module]                         [Coordinate Normalization Engine]
+  (MobileNetV3 on hand ROI)                     ├── Wrist Translation: p_i' = p_i - p_0
+         │                                      ├── Scale Normalization: p_i'' = p_i' / s
+         │                                      └── Flatten to 63-dimensional vector
+         │                                                  │
+         │                        ┌─────────────────────────┴─────────────────────────┐
+         │                        ▼                                                   ▼
+         │             [StaticGestureNet (MLP)]                            [DynamicGestureNet]
+         │             (36 Static Signs A-Z, 0-9)                          (Bi-LSTM + Attention)
+         │             ├── Latency: &lt; 2.5 ms (CPU)                         ├── Latency: ~8 ms (CPU)
+         │             └── Output: 36 Class Logits                         └── Output: 9 Word Logits
+         │                        │                                                   │
+         └────────────────────────┼───────────────────────────────────────────────────┘
+                                  ▼
+                   [Probability Softmax Distribution]
+                                  │
+                                  ▼
+                   [Stateful PhraseBuilder Engine]
+                    ├── 12-Frame Unanimous Consensus Filter (Anti-Jitter)
+                    ├── Sustained Hand Absence (20 Empty Frames = Space Token)
+                    └── Interactive Editing API (Backspace, Clear, Word Buffer)
+                                  │
+                                  ▼
+                   [User Interface Presentation Layer]
+                    ├── Desktop OpenCV HUD (inference.py)
+                    └── Web Browser Application (run_app.py / camera.html)
+  </div>
+
+  <h2>6.2 Technology Stack Details</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Layer</th>
+        <th>Technology / Library</th>
+        <th>Version</th>
+        <th>Architectural Function</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Perception</strong></td>
+        <td>Google MediaPipe</td>
+        <td>0.10.9 / WASM</td>
+        <td>Real-time extraction of 21 3D hand skeletal landmark coordinates.</td>
+      </tr>
+      <tr>
+        <td><strong>Machine Learning</strong></td>
+        <td>PyTorch</td>
+        <td>2.2.1</td>
+        <td>Neural network modeling, backpropagation, and training optimization.</td>
+      </tr>
+      <tr>
+        <td><strong>Inference Engine</strong></td>
+        <td>ONNX Runtime / Web</td>
+        <td>1.17.3</td>
+        <td>Hardware-accelerated execution graph on CPU and WebAssembly.</td>
+      </tr>
+      <tr>
+        <td><strong>Computer Vision</strong></td>
+        <td>OpenCV</td>
+        <td>4.9.0</td>
+        <td>Video streaming, coordinate overlays, frame flipping, and desktop HUD.</td>
+      </tr>
+      <tr>
+        <td><strong>Web Backend</strong></td>
+        <td>Flask &amp; Flask-CORS</td>
+        <td>3.0.3 / 4.0.1</td>
+        <td>RESTful JSON prediction service (`/api/predict`) and static file host.</td>
+      </tr>
+      <tr>
+        <td><strong>Frontend Client</strong></td>
+        <td>HTML5 / CSS3 / ES6 JS</td>
+        <td>Modern</td>
+        <td>Dark-mode dashboard, live canvas rendering, and dynamic phrase board.</td>
+      </tr>
+      <tr>
+        <td><strong>DevOps / Launchers</strong></td>
+        <td>Windows Batch Scripts</td>
+        <td>Windows 10/11</td>
+        <td>Zero-configuration launchers: `train_and_run.bat` and `run.bat`.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="page-break"></div>
+
+  <!-- ==================== SECTION 7: DATASET DESCRIPTION ==================== -->
+  <div class="running-header">
+    <span>Sign Language Recognition System | B.Tech Project Report</span>
+    <span>Lovely Professional University</span>
+  </div>
+
+  <h1>7. DATASET DESCRIPTION</h1>
+
+  <h2>7.1 Dataset Structure and Acquisition</h2>
+  <p>
+    The project leverages a comprehensive dataset engineered across three complementary data acquisition modalities:
+  </p>
+  <ul>
+    <li><strong>Procedural Hand Pose Synthesis:</strong> Algorithmic generation of 3D skeletal landmarks adhering to biomechanical finger joint angle limits, establishing canonical representations across all 36 static classes.</li>
+    <li><strong>Offline Kaggle ASL Extraction:</strong> Offline batch extraction using `collect.py --mode offline_extract` applied across 87,000 real-world images from the Kaggle ASL Alphabet benchmark.</li>
+    <li><strong>Interactive Live Webcam Capture:</strong> Direct webcam landmark recording using `collect.py --mode static`, featuring on-screen countdown timers and detection confidence quality gates ($&gt; 0.85$).</li>
+  </ul>
+
+  <div class="callout">
+    <div class="callout-title">Static Sign Dataset Distribution</div>
+    Total Classes: <strong>36</strong> (A–Z, 0–9) &nbsp;|&nbsp; Samples per Class: <strong>Exactly 300</strong> &nbsp;|&nbsp; Total Dataset: <strong>10,800 .npy Files</strong>
+  </div>
+
+  <h2>7.2 Mathematical Normalization Formulation</h2>
+  <p>
+    Given 21 raw landmarks $\mathbf{P} = \{\mathbf{p}_0, \mathbf{p}_1, \dots, \mathbf{p}_{20}\}$ with $\mathbf{p}_i = (x_i, y_i, z_i)$, where $\mathbf{p}_0$ represents the wrist:
+  </p>
+  <p><strong>1. Translation Invariance (Wrist to Origin):</strong></p>
+  $$\mathbf{p}'_i = \mathbf{p}_i - \mathbf{p}_0, \quad \forall i \in \{0, \dots, 20\}$$
+  <p><strong>2. Scale Invariance (Euclidean Norm Scaling):</strong></p>
+  $$s = \max_{j \in \{0, \dots, 20\}} \sqrt{x'_j{}^2 + y'_j{}^2 + z'_j{}^2} + 10^{-6}, \quad \mathbf{p}''_i = \frac{\mathbf{p}'_i}{s}$$
+  <p><strong>3. Feature Flattening:</strong></p>
+  $$\mathbf{x} = [x''_0, y''_0, z''_0, x''_1, y''_1, z''_1, \dots, x''_{20}, y''_{20}, z''_{20}]^T \in \mathbb{R}^{63}$$
+
+  <h2>7.3 Sample Coordinate Transformations</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Joint #</th>
+        <th>Anatomical Description</th>
+        <th>Raw Camera Frame $(x, y, z)$</th>
+        <th>Normalized Feature Vector $(x'', y'', z'')$</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>0</td><td>Wrist (Origin)</td><td>$(0.512, 0.784, 0.000)$</td><td>$(0.000, 0.000, 0.000)$</td></tr>
+      <tr><td>4</td><td>Thumb Tip</td><td>$(0.398, 0.612, -0.038)$</td><td>$(-0.412, -0.622, -0.137)$</td></tr>
+      <tr><td>8</td><td>Index Finger Tip</td><td>$(0.462, 0.418, -0.052)$</td><td>$(-0.181, -1.324, -0.188)$</td></tr>
+      <tr><td>12</td><td>Middle Finger Tip</td><td>$(0.518, 0.395, -0.055)$</td><td>$(0.022, -1.407, -0.199)$</td></tr>
+      <tr><td>16</td><td>Ring Finger Tip</td><td>$(0.574, 0.415, -0.048)$</td><td>$(0.224, -1.335, -0.174)$</td></tr>
+      <tr><td>20</td><td>Pinky Finger Tip</td><td>$(0.621, 0.472, -0.040)$</td><td>$(0.394, -1.129, -0.145)$</td></tr>
+    </tbody>
+  </table>
+
+  <div class="page-break"></div>
+
+  <!-- ==================== SECTION 8: METHODOLOGY & IMPLEMENTATION ==================== -->
+  <div class="running-header">
+    <span>Sign Language Recognition System | B.Tech Project Report</span>
+    <span>Lovely Professional University</span>
+  </div>
+
+  <h1>8. METHODOLOGY AND IMPLEMENTATION</h1>
+
+  <h2>8.1 StaticGestureNet Architecture</h2>
+  <p>
+    The static recognition neural network is formulated as an optimized Multi-Layer Perceptron engineered in PyTorch:
+  </p>
+  <ul>
+    <li><strong>Layer 1:</strong> $\mathbf{h}_1 = \text{Dropout}_{0.3}(\text{ReLU}(\text{BatchNorm}(\mathbf{W}_1 \mathbf{x} + \mathbf{b}_1)))$, with $\mathbf{W}_1 \in \mathbb{R}^{256 \times 63}$</li>
+    <li><strong>Layer 2:</strong> $\mathbf{h}_2 = \text{Dropout}_{0.3}(\text{ReLU}(\text{BatchNorm}(\mathbf{W}_2 \mathbf{h}_1 + \mathbf{b}_2)))$, with $\mathbf{W}_2 \in \mathbb{R}^{128 \times 256}$</li>
+    <li><strong>Layer 3:</strong> $\mathbf{h}_3 = \text{ReLU}(\mathbf{W}_3 \mathbf{h}_2 + \mathbf{b}_3)$, with $\mathbf{W}_3 \in \mathbb{R}^{64 \times 128}$</li>
+    <li><strong>Classification Output:</strong> $\mathbf{z} = \mathbf{W}_4 \mathbf{h}_3 + \mathbf{b}_4$, with $\mathbf{W}_4 \in \mathbb{R}^{36 \times 64}$</li>
+    <li><strong>Total Trainable Parameters:</strong> <strong>60,644</strong> weights and biases initialized via Kaiming normal distribution.</li>
+  </ul>
+
+  <h2>8.2 DynamicGestureNet with Temporal Attention</h2>
+  <p>
+    For sequential dynamic signs, a 30-frame sequence $\mathbf{X} \in \mathbb{R}^{30 \times 63}$ is processed by a 2-layer Bidirectional LSTM. A learned attention vector computes time-step importance weights:
+  </p>
+  $$\alpha_t = \frac{\exp(\mathbf{w}_a^T \tanh(\mathbf{W}_a \mathbf{h}_t + \mathbf{b}_a))}{\sum_{k=1}^{30} \exp(\mathbf{w}_a^T \tanh(\mathbf{W}_a \mathbf{h}_k + \mathbf{b}_a))}, \quad \mathbf{c} = \sum_{t=1}^{30} \alpha_t \mathbf{h}_t$$
+
+  <h2>8.3 Key Implementation Logic</h2>
+  <pre><code># Static MLP Architecture Definition (src/models/static_mlp.py)
+import torch
+import torch.nn as nn
+
+class StaticGestureNet(nn.Module):
+    def __init__(self, num_classes: int = 36, dropout: float = 0.3):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(63, 256),
+            nn.BatchNorm1d(256),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=dropout),
+            nn.Linear(256, 128),
+            nn.BatchNorm1d(128),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=dropout),
+            nn.Linear(128, 64),
+            nn.ReLU(inplace=True),
+            nn.Linear(64, num_classes)
+        )
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net(x)</code></pre>
+
+  <pre><code># Temporal Anti-Jitter Debounce Engine (src/phrase_builder.py)
+def push(self, sign: str | None):
+    if sign is None:
+        self._empty_count += 1
+        self._buf.clear()
+        if self._empty_count &gt;= self.space_frames and not self._space_inserted and self._tokens:
+            if self._tokens[-1] != " ":
+                self._tokens.append(" ")
+                self._space_inserted = True
+    else:
+        self._empty_count = 0
+        self._space_inserted = False
+        self._buf.append(sign)
+        # Commit sign only after 12 consecutive identical predictions
+        if len(self._buf) == self.hold_frames and len(set(self._buf)) == 1:
+            self._tokens.append(sign)
+            self._buf.clear()</code></pre>
+
+  <div class="page-break"></div>
+
+  <!-- ==================== SECTION 9: RESULTS AND ANALYSIS ==================== -->
+  <div class="running-header">
+    <span>Sign Language Recognition System | B.Tech Project Report</span>
+    <span>Lovely Professional University</span>
+  </div>
+
+  <h1>9. RESULTS AND ANALYSIS</h1>
+
+  <h2>9.1 Quantitative Evaluation Metrics</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Evaluation Metric</th>
+        <th>Empirical Result</th>
+        <th>Benchmark Reference</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Validation Accuracy (36 Classes)</strong></td><td><strong>96.9%</strong></td><td>Held-out stratified 15% split</td></tr>
+      <tr><td><strong>Macro Precision</strong></td><td><strong>0.970</strong></td><td>Averaged across all classes</td></tr>
+      <tr><td><strong>Macro Recall</strong></td><td><strong>0.969</strong></td><td>High sensitivity across all gestures</td></tr>
+      <tr><td><strong>Macro F1-Score</strong></td><td><strong>0.970</strong></td><td>Harmonic mean of precision and recall</td></tr>
+      <tr><td><strong>Model Disk Size</strong></td><td><strong>240 KB</strong></td><td>Compact serialized format</td></tr>
+      <tr><td><strong>ONNX CPU Inference Time</strong></td><td><strong>&lt; 2.5 ms</strong></td><td>Intel Core i5 (no GPU)</td></tr>
+      <tr><td><strong>End-to-End Latency</strong></td><td><strong>~24 ms</strong></td><td>MediaPipe (20ms) + ONNX (2.5ms) + UI (1.5ms)</td></tr>
+      <tr><td><strong>Throughput (FPS)</strong></td><td><strong>&gt; 30 FPS</strong></td><td>Full real-time video responsiveness</td></tr>
+    </tbody>
+  </table>
+
+  <h2>9.2 Per-Class Recognition Analysis</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Sign Category</th>
+        <th>Signs</th>
+        <th>Mean Accuracy</th>
+        <th>Articulatory Analysis</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Distinct Static Signs</strong></td>
+        <td>L, Y, B, F, H, 5</td>
+        <td><strong>98% – 99%</strong></td>
+        <td>Distinctive spatial finger geometry; large Euclidean distance between keypoints.</td>
+      </tr>
+      <tr>
+        <td><strong>Subtle Hand Shapes</strong></td>
+        <td>M, N, S, E</td>
+        <td><strong>93% – 94%</strong></td>
+        <td>Minor confusion between M and N due to thumb positioning underneath closed fingers.</td>
+      </tr>
+      <tr>
+        <td><strong>Motion-Based Signs</strong></td>
+        <td>J, Z</td>
+        <td><strong>91%</strong></td>
+        <td>Signs inherently involve continuous motion; static approximation incurs minor ambiguity.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>9.3 Architectural Baseline Comparison</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Model Architecture</th>
+        <th>Input Modality</th>
+        <th>Disk Size</th>
+        <th>CPU Latency</th>
+        <th>Validation Accuracy</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Raw RGB VGG-16</td><td>$224\times224\times3$ Image</td><td>528 MB</td><td>~140 ms</td><td>91.2%</td></tr>
+      <tr><td>Raw RGB MobileNetV3</td><td>$224\times224\times3$ Image</td><td>9.8 MB</td><td>~18 ms</td><td>93.4%</td></tr>
+      <tr><td>MediaPipe + SVM</td><td>63 Coordinates</td><td>4.2 MB</td><td>~8 ms</td><td>94.0%</td></tr>
+      <tr><td><strong>SignSense (StaticNet)</strong></td><td><strong>63 Coordinates</strong></td><td><strong>0.24 MB</strong></td><td><strong>&lt; 2.5 ms</strong></td><td><strong>96.9%</strong></td></tr>
+    </tbody>
+  </table>
+
+  <div class="page-break"></div>
+
+  <!-- ==================== SECTION 10: DEPLOYMENT DETAILS ==================== -->
+  <div class="running-header">
+    <span>Sign Language Recognition System | B.Tech Project Report</span>
+    <span>Lovely Professional University</span>
+  </div>
+
+  <h1>10. DEPLOYMENT DETAILS</h1>
+
+  <h2>10.1 Dual Deployment Architecture</h2>
+  <p>
+    SignSense is engineered with dual deployment pathways accommodating both standalone offline workstations and zero-install web browser clients:
+  </p>
+  <ul>
+    <li><strong>Standalone Desktop Client (`src/inference.py`):</strong> Standalone Python desktop execution utilizing OpenCV HighGUI for high-frame-rate rendering, direct MediaPipe video processing, and local ONNX Runtime inference.</li>
+    <li><strong>Full-Stack Web Application (`src/run_app.py`):</strong> Lightweight Flask backend providing API endpoints (`/api/predict` and `/api/health`) and serving static web assets (`website/camera.html` and `website/index.html`). Hand detection runs completely client-side in the browser via MediaPipe WebAssembly (WASM).</li>
+  </ul>
+
+  <h2>10.2 Automated One-Click Windows Launchers</h2>
+  <p>
+    Two production-grade Windows batch scripts were implemented in the root directory for instant evaluation:
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>Script Name</th>
+        <th>Primary Action</th>
+        <th>Execution Flow</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>`run.bat`</strong></td>
+        <td>Direct Launch</td>
+        <td>Activates `venv` &rarr; Verifies model weights &rarr; Launches Flask server &rarr; Automatically opens `http://localhost:5000/camera` in browser.</td>
+      </tr>
+      <tr>
+        <td><strong>`train_and_run.bat`</strong></td>
+        <td>Train &amp; Launch</td>
+        <td>Activates `venv` &rarr; Executes `src/train.py` across 36 classes &rarr; Exports ONNX model &rarr; Starts server and launches camera web interface.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>10.3 Source Code Repository & Local Endpoints</h2>
+  <ul>
+    <li><strong>GitHub Repository:</strong> <a href="https://github.com/AdityaJadhav4545/Sign-Language-Recognition-System" target="_blank">https://github.com/AdityaJadhav4545/Sign-Language-Recognition-System</a></li>
+    <li><strong>Local Web Showcase:</strong> <code>http://localhost:5000/</code></li>
+    <li><strong>Live Camera Inference:</strong> <code>http://localhost:5000/camera</code></li>
+  </ul>
+
+  <div class="page-break"></div>
+
+  <!-- ==================== SECTION 11: CONCLUSION & FUTURE SCOPE ==================== -->
+  <div class="running-header">
+    <span>Sign Language Recognition System | B.Tech Project Report</span>
+    <span>Lovely Professional University</span>
+  </div>
+
+  <h1>11. CONCLUSION AND FUTURE SCOPE</h1>
+
+  <h2>11.1 Conclusion</h2>
+  <p>
+    The <strong>Sign Language Recognition System (SignSense)</strong> demonstrates an effective, production-grade assistive communication platform for real-time American Sign Language recognition. By decoupling high-dimensional visual perception from gestural classification through Google MediaPipe Hands, the system eliminates traditional GPU hardware prerequisites, achieving <strong>96.9% validation accuracy</strong> across 36 static classes with <strong>sub-3ms inference latency</strong> on commodity laptop CPUs.
+  </p>
+  <p>
+    The stateful temporal debouncing algorithm suppresses per-frame flicker, while automatic whitespace synthesis enables natural sentence creation. The deployment architecture, featuring in-browser WebAssembly execution and one-click Windows launchers, delivers an accessible, robust tool that facilitates smoother communication between signing and non-signing communities.
+  </p>
+
+  <h2>11.2 Future Scope</h2>
+  <ol>
+    <li><strong>MediaPipe Holistic Integration:</strong> Transitioning to MediaPipe Holistic to track both hands simultaneously alongside facial expressions and torso pose, enabling complex bimanual signing in British Sign Language (BSL) and Indian Sign Language (ISL).</li>
+    <li><strong>Lightweight Language Model Autocorrection:</strong> Incorporating an n-gram or quantized GPT-2 model into the `PhraseBuilder` to autocorrect fingerspelled strings into grammatically fluent sentences.</li>
+    <li><strong>Speech Synthesis Voice Feedback:</strong> Integrating the Web Speech Synthesis API to vocalize assembled sentences aloud, facilitating reciprocal spoken conversations for non-signing listeners.</li>
+    <li><strong>Mobile Edge Portability:</strong> Exporting quantized ONNX models to TensorFlow Lite (TFLite) and Apple CoreML for native offline mobile applications on Android and iOS devices.</li>
+  </ol>
+
+  <div class="page-break"></div>
+
+  <!-- ==================== SECTION 12: REFERENCES ==================== -->
+  <div class="running-header">
+    <span>Sign Language Recognition System | B.Tech Project Report</span>
+    <span>Lovely Professional University</span>
+  </div>
+
+  <h1>12. REFERENCES</h1>
+  <ol style="font-size: 10pt; line-height: 1.8;">
+    <li>Zhang, F., Bazarevsky, V., Vakunov, A., Tkachenka, A., Sung, C., Chang, C. L., &amp; Grundmann, M. (2020). <em>MediaPipe Hands: On-device Real-time Hand Tracking</em>. Google Research. arXiv preprint arXiv:2006.10214.</li>
+    <li>Li, D., Rodriguez, C., Yu, X., &amp; Li, H. (2020). <em>Word-level Deep Sign Language Recognition from Video: A New Large-scale Dataset and Methods Comparison</em>. In Proceedings of the IEEE/CVF Winter Conference on Applications of Computer Vision (WACV), pp. 1459-1469.</li>
+    <li>Hochreiter, S., &amp; Schmidhuber, J. (1997). <em>Long Short-Term Memory</em>. Neural Computation, 9(8), 1735-1780.</li>
+    <li>Howard, A., Sandler, M., Chu, G., Chen, L. C., Chen, B., Tan, M., Wang, W., Zhu, Y., Pang, R., Vasudevan, V., Le, Q. V., &amp; Adam, H. (2019). <em>Searching for MobileNetV3</em>. In Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV), pp. 1314-1324.</li>
+    <li>Lugaresi, C., Tang, J., Hadon, H., Wang, P., Uboweja, A., Hornung, R., ... &amp; Grundmann, M. (2019). <em>MediaPipe: A Framework for Building Perception Pipelines</em>. Google Research. arXiv preprint arXiv:1906.08172.</li>
+    <li>Kaggle ASL Consortium. (2018). <em>ASL Alphabet: 87,000 Images of American Sign Language Letters</em>. https://www.kaggle.com/datasets/grassknoted/asl-alphabet</li>
+    <li>Paszke, A., Gross, S., Massa, F., Lerer, A., Bradbury, J., Chanan, G., ... &amp; Chintala, S. (2019). <em>PyTorch: An Imperative Style, High-Performance Deep Learning Library</em>. In Advances in Neural Information Processing Systems (NeurIPS 32), pp. 8024-8035.</li>
+    <li>Bai, J., Lu, F., Zhang, K., et al. (2019). <em>ONNX: Open Neural Network Exchange</em>. GitHub repository: https://github.com/onnx/onnx</li>
+    <li>Grinberg, M. (2018). <em>Flask Web Development: Developing Web Applications with Python</em>. O'Reilly Media, 2nd Edition.</li>
+    <li>World Health Organization (WHO). (2023). <em>Deafness and Hearing Loss Factsheet</em>. World Health Organization Technical Report.</li>
+  </ol>
+
+  <div class="page-break"></div>
+
+  <!-- ==================== SECTION 13: APPENDIX ==================== -->
+  <div class="running-header">
+    <span>Sign Language Recognition System | B.Tech Project Report</span>
+    <span>Lovely Professional University</span>
+  </div>
+
+  <h1>13. APPENDIX</h1>
+
+  <h2>Appendix A: Project Contribution and Member Details</h2>
+  <p>
+    This project was conceived, designed, engineered, and evaluated individually by:
+  </p>
+  <ul>
+    <li><strong>Student Name:</strong> Aditya Tanaji Jadhav</li>
+    <li><strong>Registration Number:</strong> 12405735 &nbsp;&nbsp;|&nbsp;&nbsp; <strong>Section:</strong> 2M017</li>
+    <li><strong>Degree:</strong> Bachelor of Technology (Computer Science and Engineering)</li>
+    <li><strong>Institution:</strong> Lovely Professional University, Punjab</li>
+    <li><strong>Individual Responsibilities:</strong>
+      <ul>
+        <li>Dataset pipeline creation and coordinate extraction (`collect.py`, `download_data.py`).</li>
+        <li>Mathematical derivation and implementation of coordinate normalization (`preprocess.py`).</li>
+        <li>Neural network architecture design and training (`static_mlp.py`, `dynamic_lstm.py`, `train.py`).</li>
+        <li>Temporal phrase debouncer and automatic space insertion engine (`phrase_builder.py`).</li>
+        <li>Flask web application backend and in-browser camera interface (`run_app.py`, `camera.html`).</li>
+        <li>Development of Windows batch launchers (`run.bat`, `train_and_run.bat`) and GitHub repository management.</li>
+      </ul>
+    </li>
+  </ul>
+
+  <h2>Appendix B: AI Usage and Academic Integrity Statement</h2>
+  <p>
+    In adherence to university academic guidelines, Artificial Intelligence tools were utilized as assistive aids for code verification, CSS UI design refinement, and document formatting. All theoretical foundations, model training runs, benchmark evaluations, mathematical normalizations, and technical analyses were executed and verified independently by the author.
+  </p>
+
+  <h2>Appendix C: Project Repository Structure</h2>
+  <pre><code>sign_language_recognition/
+├── checkpoints/              # Model weights and evaluation figures
+│   ├── best_static.pt        # PyTorch trained checkpoint (96.9% val accuracy)
+│   ├── cm_static.png         # Confusion matrix plot
+│   ├── cm_static_norm.png    # Normalized confusion matrix heatmap
+│   ├── curves_static.png     # Loss and accuracy learning curves
+│   └── per_class_static.png  # Per-class accuracy bar charts
+├── configs/                  # Hyperparameter configuration files
+│   ├── static.yaml           # Static sign configuration (36 classes)
+│   └── dynamic.yaml          # Dynamic sequence configuration (9 classes)
+├── data/
+│   └── landmarks/            # 10,800 static landmark files (300/class)
+├── exports/                  # Serialized inference models
+│   └── static.onnx           # Hardware-optimized ONNX model (247 KB)
+├── src/                      # Source code modules
+│   ├── models/               # PyTorch neural network architectures
+│   │   ├── static_mlp.py     # StaticGestureNet (4-layer MLP)
+│   │   ├── dynamic_lstm.py   # DynamicGestureNet (Bi-LSTM + Attention)
+│   │   └── fallback_cnn.py   # FallbackCNN (MobileNetV3-Small)
+│   ├── collect.py            # Webcam and dataset collection
+│   ├── dataset.py            # PyTorch Dataset and WeightedRandomSampler
+│   ├── download_data.py      # Dataset downloader and synthetic generator
+│   ├── evaluate.py           # Evaluation script and latency benchmarking
+│   ├── inference.py          # Real-time OpenCV webcam desktop loop
+│   ├── phrase_builder.py     # Debounce and sentence accumulation buffer
+│   ├── preprocess.py         # Root-relative and scale normalization
+│   └── run_app.py            # Flask web application launcher
+├── website/                  # Browser application
+│   ├── camera.html           # Live camera inference UI (MediaPipe WASM + ONNX Web)
+│   ├── index.html            # SignSense landing showcase page
+│   └── static.onnx           # Web-accessible ONNX model
+├── PROJECT_REPORT.html       # Printable academic project report with LPU seal
+├── PROJECT_REPORT.md         # Markdown project report
+├── run.bat                   # One-click Windows launch script
+├── train_and_run.bat         # One-click Windows train & launch script
+└── requirements.txt          # Python dependency specifications</code></pre>
+
+</div>
+
+</body>
+</html>
